@@ -1,14 +1,21 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:18' 
+            args '-v /var/run/docker.sock:/var/run/docker.sock'  
+        }
+    }
 
     environment {
-        IMAGE_NAME = "ahmedhamdi1/nodejs-app" 
+        DOCKER_HUB_CREDENTIALS = credentials('dockerhub-creds')  
+        DOCKERHUB_USERNAME = 'ahmedhamdi1' 
+        IMAGE_NAME = 'jenkins-nodejs-example'  
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/AhmedHamdi2/jenkins_nodejs_example.git' 
+                git 'https://github.com/AhmedHamdi2/jenkins_nodejs_example.git'
             }
         }
 
@@ -20,20 +27,23 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh 'npm test || true' 
+                sh 'npm test'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME .'
+                sh 'docker build -t $DOCKERHUB_USERNAME/$IMAGE_NAME .'
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withDockerRegistry([ credentialsId: 'dockerhub-creds', url: '' ]) {
-                    sh 'docker push $IMAGE_NAME'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+                    sh """
+                        echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
+                        docker push $DOCKERHUB_USERNAME/$IMAGE_NAME
+                    """
                 }
             }
         }
