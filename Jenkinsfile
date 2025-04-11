@@ -1,51 +1,56 @@
 pipeline {
-    agent {
-        docker {
-            image 'node:18' 
-            args '-v /var/run/docker.sock:/var/run/docker.sock'  
-        }
-    }
+    agent any
 
     environment {
-        DOCKER_HUB_CREDENTIALS = credentials('dockerhub-creds')  
-        DOCKERHUB_USERNAME = 'ahmedhamdi1' 
-        IMAGE_NAME = 'jenkins-nodejs-example'  
+        DOCKER_IMAGE = "ahmedhamdi1/jenkins-nodejs-app"
+        DOCKER_CREDENTIALS = "dockerhub-creds"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/AhmedHamdi2/jenkins_nodejs_example.git'
+                checkout scm
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Run Tests') {
-            steps {
-                sh 'npm test'
+                script {
+                    sh 'npm install'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $DOCKERHUB_USERNAME/$IMAGE_NAME .'
+                script {
+                    sh 'docker build -t ${DOCKER_IMAGE}:latest .'
+                }
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                script {
+                    sh 'npm test'
+                }
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
-                    sh """
-                        echo "$PASSWORD" | docker login -u "$USERNAME" --password-stdin
-                        docker push $DOCKERHUB_USERNAME/$IMAGE_NAME
-                    """
+                script {
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS) {
+                        sh 'docker push ${DOCKER_IMAGE}:latest'
+                    }
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker rmi ${DOCKER_IMAGE}:latest || true'
         }
     }
 }
