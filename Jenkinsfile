@@ -16,7 +16,9 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 script {
-                    sh 'npm install'
+                    dir('nodeapp') {
+                        sh 'npm install'
+                    }
                 }
             }
         }
@@ -32,7 +34,9 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    sh 'npm test'
+                    dir('nodeapp') {
+                        sh 'npm test'
+                    }
                 }
             }
         }
